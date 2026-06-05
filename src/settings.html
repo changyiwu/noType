@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>notype - 設定</title>
+  <link rel="stylesheet" href="settings.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="settings-container">
+    <div class="header">
+      <h2>notype 設定 <span id="app-version" class="version-badge">v1.1.0</span></h2>
+      <button id="close-btn" class="close-btn" title="關閉">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <form id="settings-form">
+      <!-- STT Provider -->
+      <div class="form-group">
+        <label for="provider">語音辨識 (STT) 服務商</label>
+        <select id="provider" name="provider">
+          <option value="groq">Groq Whisper (速度極快，推薦)</option>
+          <option value="openai">OpenAI Whisper (高準度)</option>
+        </select>
+      </div>
+
+      <!-- Groq Key -->
+      <div id="groq-group" class="form-group">
+        <label for="groqApiKey">Groq API Key</label>
+        <input type="password" id="groqApiKey" name="groqApiKey" placeholder="輸入 gsk_ 開頭的 API Key">
+        <span class="tip">取得網址：<a href="https://console.groq.com/" target="_blank">Groq Console</a></span>
+      </div>
+
+      <!-- OpenAI Key -->
+      <div id="openai-group" class="form-group hidden">
+        <label for="openaiApiKey">OpenAI API Key</label>
+        <input type="password" id="openaiApiKey" name="openaiApiKey" placeholder="輸入 sk- 開頭的 API Key">
+        <span class="tip">取得網址：<a href="https://platform.openai.com/" target="_blank">OpenAI Platform</a></span>
+      </div>
+
+      <!-- LLM Provider -->
+      <div class="form-group">
+        <label for="llmProvider">贅字修飾與文法優化 (LLM) 服務商</label>
+        <select id="llmProvider" name="llmProvider">
+          <option value="none">停用語意優化 (僅輸出原始語音辨識)</option>
+          <option value="groq">Groq AI (極速修飾)</option>
+          <option value="openai">OpenAI GPT</option>
+        </select>
+      </div>
+
+      <!-- Advanced settings -->
+      <div class="row">
+        <!-- Whisper Language -->
+        <div class="form-group half">
+          <label for="language">語音語言限制 (選填)</label>
+          <select id="language" name="language">
+            <option value="">自動偵測</option>
+            <option value="zh">繁體中文</option>
+            <option value="en">英文 (English)</option>
+          </select>
+        </div>
+
+        <!-- Groq Model -->
+        <div class="form-group half hidden" id="groq-model-group">
+          <label for="groqModel">Groq 模型</label>
+          <select id="groqModel" name="groqModel">
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B (極速)</option>
+            <option value="llama-3.3-70b-specdec">Llama 3.3 70B (高品質)</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+          </select>
+        </div>
+
+        <!-- OpenAI Model -->
+        <div class="form-group half hidden" id="openai-model-group">
+          <label for="openaiModel">OpenAI 模型</label>
+          <select id="openaiModel" name="openaiModel">
+            <option value="gpt-4o-mini">GPT-4o Mini (快速推薦)</option>
+            <option value="gpt-4o">GPT-4o (精準度高)</option>
+            <option value="o1-mini">o1 Mini (推理型)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Auto Launch config -->
+      <div class="form-group toggle-group">
+        <span class="toggle-label">開機自動啟動</span>
+        <label class="switch">
+          <input type="checkbox" id="autoLaunch" name="autoLaunch">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Hotkey config -->
+      <div class="form-group">
+        <label for="hotkey">全域快捷鍵 (點擊輸入框以鍵盤錄製)</label>
+        <input type="text" id="hotkey" name="hotkey" value="Alt+Q" placeholder="請點擊此處並按下快速鍵組合..." readonly style="cursor: pointer; caret-color: transparent;">
+        <span class="tip">請點擊輸入框並在鍵盤上按下欲設定的快速鍵組合即可自動錄製（例如：Alt+Q）。</span>
+      </div>
+
+      <div class="actions">
+        <span id="save-status" class="save-status"></span>
+        <button type="submit" class="save-btn">儲存設定</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="settings-renderer.js"></script>
+</body>
+</html>
