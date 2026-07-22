@@ -12,7 +12,7 @@
 
 ## 專案目錄結構
 
-- `ANTIGRAVITY.md`：本專案的 AI 工作規則入口。
+- `agents.md`：本專案的跨 Agent 工作規則入口。
 - `README.md`：專案說明文件（本檔案）。
 - `.gitignore`：Git 忽略規則設定。
 - （後續開發程式碼將放置於此目錄中）
