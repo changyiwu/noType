@@ -34,35 +34,16 @@ settingsBtn.addEventListener('click', () => {
 // Register Click to record
 recordBtn.addEventListener('click', () => {
   if (isProcessing) return;
-  
-  if (!isRecording) {
-    // We send a request to main process to handle hotkey-like flow
-    // or we can start recording directly.
-    // To ensure main process knows status, we let main process control it.
-    ipcToggleRecording();
-  } else {
-    ipcToggleRecording();
-  }
+  window.electronAPI.toggleRecording();
 });
-
-// IPC communication triggers
-function ipcToggleRecording() {
-  // Main process will send 'start-recording' or 'stop-recording' back
-  // which will trigger the actual start/stop functions.
-  // This syncs the status of keyboard hotkeys and click actions.
-  if (!isRecording) {
-    startRecordingFlow();
-  } else {
-    stopRecordingFlow();
-  }
-}
 
 // Actual recording logic
 async function startRecordingFlow() {
   if (isRecording || isProcessing) return;
-  
+
+  let stream = null;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
     
     let options = {};
@@ -81,19 +62,33 @@ async function startRecordingFlow() {
     };
     
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      window.electronAPI.sendAudioData(arrayBuffer);
-      
-      // Release microphone
-      stream.getTracks().forEach(track => track.stop());
+      try {
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        if (audioBlob.size === 0) {
+          throw new Error('沒有錄到可處理的音訊。');
+        }
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        window.electronAPI.sendAudioData(arrayBuffer);
+      } catch (error) {
+        console.error('準備錄音資料失敗:', error);
+        isProcessing = false;
+        window.electronAPI.reportRecordingFailed();
+        updateUI('error', error.message || '無法處理錄音資料');
+      } finally {
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
     
     mediaRecorder.start();
     isRecording = true;
+    window.electronAPI.reportRecordingStarted();
     updateUI('recording');
   } catch (error) {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
     console.error('無法啟動錄音:', error);
+    window.electronAPI.reportRecordingFailed();
     updateUI('error', '請確認麥克風設備與權限');
   }
 }
@@ -105,6 +100,9 @@ function stopRecordingFlow() {
     mediaRecorder.stop();
   } catch (err) {
     console.error('停止錄音失敗:', err);
+    window.electronAPI.reportRecordingFailed();
+    updateUI('error', '停止錄音失敗');
+    return;
   }
   isRecording = false;
   isProcessing = true;
@@ -145,6 +143,15 @@ window.electronAPI.onStatusChange((status, message) => {
     isProcessing = false;
     isRecording = false;
     updateUI('ready');
+  }
+});
+
+window.electronAPI.onConfigUpdated((config) => {
+  if (config && config.hotkey) {
+    currentHotkey = config.hotkey;
+    if (!isRecording && !isProcessing) {
+      updateUI('ready');
+    }
   }
 });
 

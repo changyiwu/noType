@@ -1,49 +1,65 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, clipboard, Tray, Menu, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, screen, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { exec } = require('child_process');
 const { transcribeAudio, refineText } = require('./api');
+const { createConfigStore, DEFAULT_SETTINGS } = require('./config-store');
+const { RecordingState } = require('./recording-state');
+const { getPlatformAdapter } = require('./platform');
 
 let mainWindow = null;
 let settingsWindow = null;
 let tray = null;
-let isRecording = false;
+let configStore = null;
 
-const configPath = path.join(app.getAppPath(), 'config.json');
-const defaultSettings = {
-  provider: 'groq',
-  groqApiKey: '',
-  openaiApiKey: '',
-  language: '',
-  llmProvider: 'groq',
-  groqModel: 'llama-3.1-8b-instant',
-  openaiModel: 'gpt-4o-mini',
-  autoLaunch: true,
-  hotkey: 'Alt+Q'
-};
+const recordingState = new RecordingState();
+const platformAdapter = getPlatformAdapter();
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
-// Helper to load config
-function loadConfig() {
-  try {
-    if (fs.existsSync(configPath)) {
-      const data = fs.readFileSync(configPath, 'utf8');
-      return { ...defaultSettings, ...JSON.parse(data) };
-    }
-  } catch (err) {
-    console.error('無法讀取設定檔，使用預設值。', err);
-  }
-  return { ...defaultSettings };
+function isPortableMode() {
+  return process.platform === 'win32' && Boolean(process.env.PORTABLE_EXECUTABLE_FILE);
 }
 
-// Helper to save config
+function initializeConfigStore() {
+  configStore = createConfigStore({
+    configPath: path.join(app.getPath('userData'), 'config.json'),
+    legacyConfigPath: path.join(app.getAppPath(), 'config.json'),
+    defaults: {
+      ...DEFAULT_SETTINGS,
+      autoLaunch: !isPortableMode()
+    }
+  });
+  return configStore.initialize();
+}
+
+function loadConfig() {
+  return configStore ? configStore.load() : { ...DEFAULT_SETTINGS };
+}
+
 function saveConfig(config) {
-  try {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    console.error('儲存設定檔失敗:', err);
-    return false;
+  return configStore ? configStore.save(config) : false;
+}
+
+function applyAutoLaunch(config) {
+  if (isPortableMode()) {
+    return;
   }
+
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: config.autoLaunch !== false,
+      path: app.getPath('exe')
+    });
+  } catch (error) {
+    console.error('無法套用開機啟動項目:', error);
+  }
+}
+
+function isMainWindowSender(event) {
+  return Boolean(mainWindow && event.sender === mainWindow.webContents);
+}
+
+function isSettingsWindowSender(event) {
+  return Boolean(settingsWindow && event.sender === settingsWindow.webContents);
 }
 
 // Create Main Floating Widget
@@ -82,6 +98,7 @@ function createMainWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    recordingState.reset();
   });
 }
 
@@ -124,15 +141,7 @@ function registerGlobalShortcut() {
 
   try {
     const registered = globalShortcut.register(config.hotkey, () => {
-      if (!mainWindow) return;
-      
-      if (!isRecording) {
-        mainWindow.webContents.send('start-recording');
-        isRecording = true;
-      } else {
-        mainWindow.webContents.send('stop-recording');
-        isRecording = false;
-      }
+      requestRecordingToggle();
     });
 
     if (!registered) {
@@ -203,66 +212,82 @@ function setupTray() {
   });
 }
 
-// Paste text using Windows PowerShell SendKeys
-function pasteText(text) {
-  if (!text) return;
-  
-  // Copy to clipboard
-  clipboard.writeText(text);
-  
-  // Wait a moment for clipboard to update, then simulate Ctrl+V
-  setTimeout(() => {
-    const powershellCmd = `powershell.exe -Command "$wshell = New-Object -ComObject Wscript.Shell; $wshell.SendKeys('^v')"`;
-    exec(powershellCmd, (err) => {
-      if (err) {
-        console.error('模擬貼上失敗:', err);
-      } else {
-        console.log('模擬貼上成功！');
-      }
-    });
-  }, 200);
+function requestRecordingToggle() {
+  if (!mainWindow) {
+    return;
+  }
+
+  const action = recordingState.requestToggle();
+  if (action === 'start') {
+    mainWindow.webContents.send('start-recording');
+  } else if (action === 'stop') {
+    mainWindow.webContents.send('stop-recording');
+  }
 }
 
 // IPC Responders
-ipcMain.handle('get-config', () => {
+ipcMain.handle('get-config', (event) => {
+  if (!isMainWindowSender(event) && !isSettingsWindowSender(event)) {
+    throw new Error('不允許的設定讀取來源。');
+  }
   const config = loadConfig();
   config.appVersion = app.getVersion();
+  config.portableMode = isPortableMode();
   return config;
 });
 
 ipcMain.handle('save-config', (event, config) => {
+  if (!isSettingsWindowSender(event)) {
+    return false;
+  }
+
+  if (isPortableMode()) {
+    config.autoLaunch = false;
+  }
+
   const success = saveConfig(config);
   if (success) {
-    // Re-register hotkey in case it changed
     registerGlobalShortcut();
-    // Update auto launch setting
-    try {
-      app.setLoginItemSettings({
-        openAtLogin: config.autoLaunch !== false,
-        path: app.getPath('exe')
-      });
-    } catch (err) {
-      console.error('無法設定開機啟動項目:', err);
-    }
-    // Reload main window to update hotkey label dynamically
+    applyAutoLaunch(config);
     if (mainWindow) {
-      mainWindow.reload();
+      mainWindow.webContents.send('config-updated', { hotkey: config.hotkey });
     }
   }
   return success;
 });
 
-ipcMain.on('open-settings', () => {
+ipcMain.on('toggle-recording', (event) => {
+  if (isMainWindowSender(event)) {
+    requestRecordingToggle();
+  }
+});
+
+ipcMain.on('recording-started', (event) => {
+  if (isMainWindowSender(event)) {
+    recordingState.markStarted();
+  }
+});
+
+ipcMain.on('recording-failed', (event) => {
+  if (isMainWindowSender(event)) {
+    recordingState.reset();
+  }
+});
+
+ipcMain.on('open-settings', (event) => {
+  if (!isMainWindowSender(event)) return;
   createSettingsWindow();
 });
 
-ipcMain.on('close-settings', () => {
+ipcMain.on('close-settings', (event) => {
+  if (!isSettingsWindowSender(event)) return;
   if (settingsWindow) {
     settingsWindow.close();
   }
 });
 
-ipcMain.on('hide-widget', () => {
+ipcMain.on('hide-widget', (event) => {
+  if (!isMainWindowSender(event)) return;
   if (mainWindow) {
     mainWindow.hide();
   }
@@ -270,10 +295,17 @@ ipcMain.on('hide-widget', () => {
 
 // Receive recorded audio buffer from renderer and process it
 ipcMain.on('audio-data', async (event, arrayBuffer) => {
+  if (!isMainWindowSender(event)) return;
+
+  if (!(arrayBuffer instanceof ArrayBuffer) || arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > MAX_AUDIO_BYTES) {
+    recordingState.reset();
+    mainWindow.webContents.send('status-change', 'error', '錄音資料無效或超過大小限制');
+    return;
+  }
+
   const audioBuffer = Buffer.from(arrayBuffer);
   const config = loadConfig();
-
-  if (!mainWindow) return;
+  recordingState.markProcessing();
 
   try {
     mainWindow.webContents.send('status-change', 'processing', '語音識別中...');
@@ -281,7 +313,7 @@ ipcMain.on('audio-data', async (event, arrayBuffer) => {
     
     // Step 1: STT
     const rawText = await transcribeAudio(audioBuffer, config);
-    console.log('STT 原始結果:', rawText);
+    console.log(`語音辨識完成（${rawText ? rawText.length : 0} 字元）。`);
     
     if (!rawText || rawText.trim().length === 0) {
       mainWindow.webContents.send('status-change', 'error', '未偵測到任何語音');
@@ -308,7 +340,7 @@ ipcMain.on('audio-data', async (event, arrayBuffer) => {
       console.log(`開始 AI 語意優化 (${llmProvider})...`);
       try {
         textToPaste = await refineText(rawText, config);
-        console.log('AI 優化結果:', textToPaste);
+        console.log(`AI 語意優化完成（${textToPaste ? textToPaste.length : 0} 字元）。`);
       } catch (llmError) {
         console.warn(`${llmProvider} 優化失敗，將使用原始辨識文字貼上:`, llmError);
         mainWindow.webContents.send('status-change', 'processing', 'AI 優化失敗，改用原始文字...');
@@ -321,32 +353,24 @@ ipcMain.on('audio-data', async (event, arrayBuffer) => {
       }
     }
 
-    // Step 3: Paste text
+    // Step 3: Paste text through the current platform adapter
+    await platformAdapter.pasteText(textToPaste);
     mainWindow.webContents.send('status-change', 'success', '已完成輸入');
-    pasteText(textToPaste);
 
   } catch (error) {
     console.error('處理語音失敗:', error);
-    mainWindow.webContents.send('status-change', 'error', error.message || '語音處理失敗');
+    if (mainWindow) {
+      mainWindow.webContents.send('status-change', 'error', error.message || '語音處理失敗');
+    }
+  } finally {
+    recordingState.reset();
   }
 });
 
 // App lifecycle hooks
 app.whenReady().then(() => {
-  // Write default config.json if not exists
-  if (!fs.existsSync(configPath)) {
-    saveConfig(defaultSettings);
-  }
-
-  const config = loadConfig();
-  try {
-    app.setLoginItemSettings({
-      openAtLogin: config.autoLaunch !== false,
-      path: app.getPath('exe')
-    });
-  } catch (err) {
-    console.error('無法套用開機啟動項目:', err);
-  }
+  const config = initializeConfigStore();
+  applyAutoLaunch(config);
 
   createMainWindow();
   setupTray();

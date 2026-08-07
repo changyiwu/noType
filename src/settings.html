@@ -11,7 +11,7 @@
 <body>
   <div class="settings-container">
     <div class="header">
-      <h2>notype 設定 <span id="app-version" class="version-badge">v1.1.0</span></h2>
+      <h2>notype 設定 <span id="app-version" class="version-badge">v1.2.0</span></h2>
       <button id="close-btn" class="close-btn" title="關閉">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -70,9 +70,9 @@
         <div class="form-group half hidden" id="groq-model-group">
           <label for="groqModel">Groq 模型</label>
           <select id="groqModel" name="groqModel">
-            <option value="llama-3.1-8b-instant">Llama 3.1 8B (極速)</option>
-            <option value="llama-3.3-70b-specdec">Llama 3.3 70B (高品質)</option>
-            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+            <option value="openai/gpt-oss-20b">GPT-OSS 20B (快速推薦)</option>
+            <option value="openai/gpt-oss-120b">GPT-OSS 120B (高品質)</option>
+            <option value="qwen/qwen3.6-27b">Qwen 3.6 27B (多語言)</option>
           </select>
         </div>
 
@@ -82,7 +82,6 @@
           <select id="openaiModel" name="openaiModel">
             <option value="gpt-4o-mini">GPT-4o Mini (快速推薦)</option>
             <option value="gpt-4o">GPT-4o (精準度高)</option>
-            <option value="o1-mini">o1 Mini (推理型)</option>
           </select>
         </div>
       </div>

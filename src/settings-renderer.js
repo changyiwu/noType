@@ -60,6 +60,12 @@ async function loadConfig() {
       if (config.groqModel) document.getElementById('groqModel').value = config.groqModel;
       if (config.openaiModel) document.getElementById('openaiModel').value = config.openaiModel;
       document.getElementById('autoLaunch').checked = config.autoLaunch !== false;
+      if (config.portableMode) {
+        const autoLaunchInput = document.getElementById('autoLaunch');
+        autoLaunchInput.checked = false;
+        autoLaunchInput.disabled = true;
+        autoLaunchInput.closest('.toggle-group').title = 'Portable 版不提供開機自動啟動。';
+      }
       if (config.hotkey) document.getElementById('hotkey').value = config.hotkey;
       
       if (config.appVersion) {

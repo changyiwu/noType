@@ -1,4 +1,21 @@
-const fs = require('fs');
+const STT_TIMEOUT_MS = 120_000;
+const LLM_TIMEOUT_MS = 60_000;
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`API 請求逾時（${Math.round(timeoutMs / 1000)} 秒），請檢查網路後重試。`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Transcribe audio buffer using OpenAI or Groq Whisper API
@@ -27,16 +44,16 @@ async function transcribeAudio(audioBuffer, config) {
     formData.append('language', config.language); // e.g. 'zh'
   }
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`
     },
     body: formData
-  });
+  }, STT_TIMEOUT_MS);
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText = (await response.text()).slice(0, 1000);
     throw new Error(`語音辨識 API 錯誤 (${response.status}): ${errorText}`);
   }
 
@@ -71,7 +88,7 @@ async function refineText(text, config) {
       throw new Error('缺少 Groq API 金鑰');
     }
     endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-    model = config.groqModel || 'llama-3.1-8b-instant';
+    model = config.groqModel || 'openai/gpt-oss-20b';
   } else if (provider === 'openai') {
     apiKey = config.openaiApiKey;
     if (!apiKey) {
@@ -83,7 +100,7 @@ async function refineText(text, config) {
     throw new Error(`不支援的 LLM 服務商: ${provider}`);
   }
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -98,10 +115,10 @@ async function refineText(text, config) {
       temperature: 0.3,
       max_tokens: 1024
     })
-  });
+  }, LLM_TIMEOUT_MS);
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText = (await response.text()).slice(0, 1000);
     throw new Error(`${provider.toUpperCase()} API 錯誤 (${response.status}): ${errorText}`);
   }
 

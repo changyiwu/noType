@@ -4,7 +4,7 @@
 
 ## 專案簡介
 
-開發類似 Typeless 的 AI 語音輸入工具：智慧優化語音轉錄內容，並自動輸入至游標位置。目前已完成主要交付（v1.1.2），並打包為 Windows 安裝執行檔。
+開發類似 Typeless 的 AI 語音輸入工具：智慧優化語音轉錄內容，並自動輸入至游標位置。目前 v1.2.0 支援 Windows x64 的 NSIS 安裝版與 Portable 免安裝版；macOS 僅規劃 Apple Silicon arm64。
 
 ## 關鍵時程
 
@@ -18,21 +18,27 @@
 - [x] 階段四：專案規則入口統一為跨 Agent `agents.md`
 - [ ] 階段五：收集使用者試用反饋，調整 AI 智慧修飾的 System Prompt 或模型參數
 - [ ] 階段六：評估加入語音指令進行對話編輯功能
-- [ ] 階段七：補上可重複執行的測試與打包驗證
+- [x] 階段七：v1.2.0 補上可重複執行的測試、Windows x64 暫存打包驗證與 Portable 產物
+- [ ] 階段八：完成 macOS Apple Silicon arm64 的自動輸入、權限、簽章與 ZIP 發布
+- [ ] 階段九：公開發布前升級 Electron 與依賴、完成安全強化及 Windows／Apple 數位簽章
 
 ## 資料夾結構
 
 ```
 notype/
 ├─ src/                   # 原始碼
+│  └─ platform/           # Windows／macOS 平台適配層
+├─ scripts/               # 可重複執行的打包腳本
+├─ test/                  # Node.js 單元測試
 ├─ dist/                  # 打包產物
-├─ config.json            # 設定檔
 ├─ package.json  package-lock.json
 ├─ README.md
 ├─ agents.md              # 本檔：專案藍圖
 ├─ handoff.md             # 交接檔（每次收工必更新）
 └─ .gitignore
 ```
+
+執行期設定一律存放於 Electron `app.getPath('userData')/config.json`；專案根目錄的舊 `config.json` 只作一次性遷移來源，且不得納入 Git。
 
 ## 同步層級（本專案初始化至第 3 層級）
 
@@ -60,6 +66,7 @@ notype/
 - 修改共用檔案前先讀最新內容，避免覆蓋其他 Agent 的變更
 - 所有回應與文件使用繁體中文；涉及檔案操作時回報完整產出位置
 - Windows 指令優先使用 PowerShell 語法
+- GDrive 專案的 Windows 發行檔一律用 `npm run dist:win`，先在系統暫存目錄打包再複製回 `dist/v版本號/`
 - 收工時更新 Obsidian 專案筆記，檢查 diff，且只提交本次任務相關檔案
 - 不把每日流水帳寫進本檔
 

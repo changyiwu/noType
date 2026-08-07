@@ -1,12 +1,15 @@
 {
   "name": "notype",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI Voice typing tool inspired by Typeless",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "dist": "electron-builder --win"
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/api.js && node --check src/renderer.js && node --check src/settings-renderer.js && node --check src/config-store.js && node --check src/recording-state.js && node --check src/platform/index.js && node --check src/platform/windows.js && node --check src/platform/macos.js && node --check scripts/build-windows.js",
+    "test": "node --test",
+    "dist": "npm run dist:win",
+    "dist:win": "npm run check && npm test && node scripts/build-windows.js"
   },
   "keywords": [],
   "author": "",
@@ -21,9 +24,24 @@
     "directories": {
       "output": "dist"
     },
+    "electronLanguages": [
+      "en-US",
+      "zh-TW"
+    ],
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "src/assets/app_icon.png"
     },
