@@ -20,7 +20,7 @@
 
 - `src/`：Electron 主程序、Renderer、API 與平台適配層。
 - `test/`：設定遷移與錄音狀態測試。
-- `agents.md`：本專案的跨 Agent 工作規則入口。
+- `AGENTS.md`：本專案的跨 Agent 工作規則入口。
 - `handoff.md`：下一個工作階段使用的本機交接檔，不進公開 repo。
 
 ## 開發與打包

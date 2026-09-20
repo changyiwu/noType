@@ -15,7 +15,7 @@
 - [x] 階段一：語音轉錄與 AI 智慧修飾核心功能
 - [x] 階段二：自動輸入至游標位置
 - [x] 階段三：v1.1.2 打包為 Windows 安裝執行檔並發布
-- [x] 階段四：專案規則入口統一為跨 Agent `agents.md`
+- [x] 階段四：專案規則入口統一為跨 Agent `AGENTS.md`
 - [ ] 階段五：收集使用者試用反饋，調整 AI 智慧修飾的 System Prompt 或模型參數
 - [ ] 階段六：評估加入語音指令進行對話編輯功能
 - [x] 階段七：v1.2.0 補上可重複執行的測試、Windows x64 暫存打包驗證與 Portable 產物
@@ -33,7 +33,7 @@ notype/
 ├─ dist/                  # 打包產物
 ├─ package.json  package-lock.json
 ├─ README.md
-├─ agents.md              # 本檔：專案藍圖
+├─ AGENTS.md              # 本檔：專案藍圖
 ├─ handoff.md             # 交接檔（每次收工必更新）
 └─ .gitignore
 ```
@@ -44,7 +44,7 @@ notype/
 
 | 層級 | 平台 | 位置 | 讀取時機 |
 |------|------|------|---------|
-| L1 | 本地（GDrive） | `agents.md`＋`handoff.md` | 每個 session |
+| L1 | 本地（GDrive） | `AGENTS.md`＋`handoff.md` | 每個 session |
 | L2 | GitHub | https://github.com/changyiwu/noType （公開，預設分支 `main`） | 指定時 |
 | L3 | Obsidian | `notype/專案工作流程.md` | 有需要時 |
 
@@ -53,7 +53,7 @@ notype/
 | 檔案 | 時效 | 寫入方式 | 放什麼 |
 |------|------|---------|--------|
 | `handoff.md` | **只對下一個 session 有效**，過期即丟 | 每次收工整份重寫 | 做到哪、下一步、**這次**的暫時 workaround |
-| `agents.md`（本檔） | **長期有效**，每個 session 都適用 | 只有規則本身變了才改 | 目標、路線圖、常設規則、結構 |
+| `AGENTS.md`（本檔） | **長期有效**，每個 session 都適用 | 只有規則本身變了才改 | 目標、路線圖、常設規則、結構 |
 | Obsidian／`git log` | **歷史**：發生過什麼、為什麼 | 只增不刪 | 決策紀錄、踩坑完整版、逐次進度 |
 
 驗收標準：**`handoff.md` 整份刪掉，不應損失任何長期資訊**——會的話代表該升級進本檔卻沒升級。
